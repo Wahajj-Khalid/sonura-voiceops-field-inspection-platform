@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect } from "react";
-import { Sparkles, MessageSquareQuote } from "lucide-react";
+import { Sparkles, MessageSquareQuote, PhoneOff, PhoneCall } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
@@ -23,20 +23,22 @@ export const VoiceCopilot: React.FC<VoiceCopilotProps> = ({
 }) => {
   const dialogueEndRef = useRef<HTMLDivElement | null>(null);
   const isCallConnected = connectionState === "connected";
+  const isConnecting = connectionState === "connecting";
+  const isCallActive = isCallConnected ? true : isConnecting;
 
   useEffect(() => {
     dialogueEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [liveMessages]);
 
   return (
-    <Card className="flex flex-col justify-between space-y-4">
+    <Card className="flex flex-col justify-between space-y-4 font-mono">
       <div>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-2">
             <Sparkles className="w-4 h-4 text-violet-400" />
-            <h3 className="text-base font-bold text-white">Voice Copilot</h3>
+            <h3 className="text-base font-bold text-white font-sans">Voice Copilot</h3>
           </div>
-          <Badge variant={isCallConnected ? "success" : "neutral"}>
+          <Badge variant={isCallConnected ? "success" : isConnecting ? "warning" : "neutral"}>
             {connectionState.toUpperCase()}
           </Badge>
         </div>
@@ -55,7 +57,7 @@ export const VoiceCopilot: React.FC<VoiceCopilotProps> = ({
 
           {liveMessages.length === 0 ? (
             <p className="text-[11px] text-slate-500 font-mono italic">
-              Awaiting voice session initiation...
+              {isConnecting ? "Negotiating WebRTC audio session..." : "Awaiting voice session initiation..."}
             </p>
           ) : (
             liveMessages.map((msg) => (
@@ -72,11 +74,12 @@ export const VoiceCopilot: React.FC<VoiceCopilotProps> = ({
       </div>
 
       <Button
-        variant={isCallConnected ? "danger" : "primary"}
+        variant={isCallActive ? "danger" : "primary"}
         onClick={onToggleCall}
-        className="w-full text-xs font-bold"
+        icon={isCallActive ? <PhoneOff className="w-3.5 h-3.5" /> : <PhoneCall className="w-3.5 h-3.5" />}
+        className="w-full text-xs font-bold py-2.5 shadow-md justify-center"
       >
-        {isCallConnected ? "Terminate Voice Session" : "Start Voice Session"}
+        {isCallConnected ? "Terminate Voice Session" : isConnecting ? "Cancel Connection" : "Start Voice Session"}
       </Button>
     </Card>
   );

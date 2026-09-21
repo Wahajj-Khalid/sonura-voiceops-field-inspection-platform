@@ -31,6 +31,7 @@ export function useVoiceSession() {
   const audioContextRef = useRef<AudioContext | null>(null);
   const mixedDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
   const userMicStreamRef = useRef<MediaStream | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const uploadAudioSession = async (audioBlob: Blob, unitId: string) => {
     if (audioBlob.size === 0) return;
@@ -86,24 +87,68 @@ export function useVoiceSession() {
     }
   };
 
+  const endSession = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    if (mediaRecorderRef.current) {
+      if (mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      mediaRecorderRef.current = null;
+    }
+
+    if (userMicStreamRef.current) {
+      userMicStreamRef.current.getTracks().forEach((track) => track.stop());
+      userMicStreamRef.current = null;
+    }
+
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+
+    if (roomRef.current) {
+      roomRef.current.disconnect();
+      roomRef.current = null;
+    }
+
+    setConnectionState("disconnected");
+    setIsAgentSpeaking(false);
+  }, []);
+
   const startSession = useCallback(async (unitId: string = APP_CONFIG.defaultUnitId) => {
+    endSession();
+
     setConnectionState("connecting");
     activeUnitIdRef.current = unitId;
     audioChunksRef.current = [];
     setAuditSubmittedTrigger(false);
 
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("sonura_token") : null;
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const tokenRes = await fetch(`${APP_CONFIG.apiUrl}/api/v1/voice/token`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ unit_id: unitId }),
+        signal: abortController.signal,
       });
 
       if (!tokenRes.ok) {
         throw new Error("Unable to obtain LiveKit token");
       }
 
-      const { token } = await tokenRes.json();
+      const { token: connectionJwt } = await tokenRes.json();
       const mixedStream = await setupAudioMixer();
 
       if (mixedStream) {
@@ -124,16 +169,6 @@ export function useVoiceSession() {
         recorder.onstop = async () => {
           const finalBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
           await uploadAudioSession(finalBlob, activeUnitIdRef.current);
-
-          if (userMicStreamRef.current) {
-            userMicStreamRef.current.getTracks().forEach((track) => track.stop());
-            userMicStreamRef.current = null;
-          }
-
-          if (audioContextRef.current) {
-            audioContextRef.current.close();
-            audioContextRef.current = null;
-          }
         };
 
         recorder.start(1000);
@@ -146,7 +181,8 @@ export function useVoiceSession() {
       roomRef.current = room;
 
       room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
-        if (participant.identity.includes("agent") || participant.identity.includes("sonura")) {
+        const isAgent = participant.identity.includes("agent") ? true : participant.identity.includes("sonura");
+        if (isAgent) {
           setConnectionState("connected");
         }
       });
@@ -157,20 +193,24 @@ export function useVoiceSession() {
           audioElement.play();
           setConnectionState("connected");
 
-          if (audioContextRef.current && mixedDestinationRef.current) {
-            try {
-              const remoteStream = new MediaStream([track.mediaStreamTrack]);
-              const remoteSource = audioContextRef.current.createMediaStreamSource(remoteStream);
-              remoteSource.connect(mixedDestinationRef.current);
-            } catch (mixErr) {
-              console.warn("Could not route remote track to audio mixer:", mixErr);
+          if (audioContextRef.current) {
+            if (mixedDestinationRef.current) {
+              try {
+                const remoteStream = new MediaStream([track.mediaStreamTrack]);
+                const remoteSource = audioContextRef.current.createMediaStreamSource(remoteStream);
+                remoteSource.connect(mixedDestinationRef.current);
+              } catch (mixErr) {
+                console.warn("Could not route remote track to audio mixer:", mixErr);
+              }
             }
           }
         }
       });
 
       room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
-        const isAgentActive = speakers.some((s) => s.identity.includes("agent") || s.identity.includes("sonura"));
+        const isAgentActive = speakers.some((s) => {
+          return s.identity.includes("agent") ? true : s.identity.includes("sonura");
+        });
         setIsAgentSpeaking(isAgentActive);
       });
 
@@ -212,37 +252,23 @@ export function useVoiceSession() {
         setIsAgentSpeaking(false);
       });
 
-      await room.connect(APP_CONFIG.livekitUrl, token);
+      await room.connect(APP_CONFIG.livekitUrl, connectionJwt);
       await room.localParticipant.enableCameraAndMicrophone();
 
-      const hasAgent = Array.from(room.remoteParticipants.values()).some((p) =>
-        p.identity.includes("agent") || p.identity.includes("sonura")
-      );
-      if (hasAgent) {
+      const hasAgentAlready = Array.from(room.remoteParticipants.values()).some((p) => {
+        return p.identity.includes("agent") ? true : p.identity.includes("sonura");
+      });
+      if (hasAgentAlready) {
         setConnectionState("connected");
       }
-    } catch (err) {
-      console.error("LiveKit connection failure:", err);
-      setConnectionState("disconnected");
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-        mediaRecorderRef.current.stop();
+    } catch (err: unknown) {
+      const errorObj = err as Error;
+      if (errorObj.name !== "AbortError") {
+        console.error("LiveKit connection failure:", err);
       }
+      endSession();
     }
-  }, []);
-
-  const endSession = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
-    }
-
-    if (roomRef.current) {
-      roomRef.current.disconnect();
-      roomRef.current = null;
-    }
-
-    setConnectionState("disconnected");
-    setIsAgentSpeaking(false);
-  }, []);
+  }, [endSession]);
 
   return {
     connectionState,
