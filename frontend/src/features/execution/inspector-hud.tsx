@@ -130,8 +130,8 @@ export const InspectorHUD: React.FC<InspectorHUDProps> = ({
   }));
 
   return (
-    <div className="space-y-4 sm:space-y-6 font-mono w-full max-w-full overflow-hidden">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 w-full">
+    <div className="space-y-4 sm:space-y-6 font-mono w-full min-w-0">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 w-full min-w-0">
         <div className="min-w-0 flex-1">
           <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white tracking-tight font-sans truncate">
             Inspection
@@ -166,9 +166,9 @@ export const InspectorHUD: React.FC<InspectorHUDProps> = ({
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
-        <Card className="lg:col-span-2 flex flex-col justify-between w-full overflow-hidden">
-          <div className="w-full">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 w-full min-w-0">
+        <Card className="lg:col-span-2 flex flex-col justify-between w-full min-w-0">
+          <div className="w-full min-w-0">
             <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
               <div className="min-w-0 pr-2">
                 <Badge variant="violet">{unitId}</Badge>
@@ -188,7 +188,7 @@ export const InspectorHUD: React.FC<InspectorHUDProps> = ({
               </div>
             </div>
 
-            <div className="space-y-2.5 sm:space-y-3 w-full">
+            <div className="space-y-2.5 sm:space-y-3 w-full min-w-0">
               {inspection ? (
                 inspection.items.map((item) => (
                   <ChecklistTile
@@ -232,7 +232,7 @@ export const InspectorHUD: React.FC<InspectorHUDProps> = ({
           </div>
         </Card>
 
-        <div className="flex flex-col space-y-4 sm:space-y-6 w-full">
+        <div className="flex flex-col space-y-4 sm:space-y-6 w-full min-w-0">
           <VoiceCopilot
             connectionState={connectionState}
             isAgentSpeaking={isAgentSpeaking}

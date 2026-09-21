@@ -21,8 +21,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   const displayTitle = user?.role === "super_admin" ? "Sonura" : user?.organization || "Sonura";
 
   return (
-    <header className="sticky top-0 z-30 px-3 sm:px-4 md:px-6 py-3 flex items-center justify-between border-b border-white/10 backdrop-blur-xl bg-[#06080d]/80 w-full max-w-full overflow-hidden">
-      <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0 flex-1 pr-2">
+    <header className="sticky top-0 z-30 px-3 sm:px-5 md:px-6 py-3 flex items-center justify-between border-b border-white/10 backdrop-blur-xl bg-[#06080d]/80 w-full min-w-0">
+      <div className="flex items-center space-x-2.5 sm:space-x-3.5 min-w-0 flex-1 pr-2">
         <button
           type="button"
           onClick={onOpenMobileSidebar}

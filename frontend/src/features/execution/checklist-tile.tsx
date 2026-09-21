@@ -38,16 +38,16 @@ export const ChecklistTile: React.FC<ChecklistTileProps> = ({ item, onUpdateItem
   const hasLongResponse = Boolean(item.response ? item.response.length > 20 : false);
 
   return (
-    <div className="p-2.5 sm:p-3.5 md:p-4 rounded-xl bg-slate-900/80 border border-slate-800 transition-all hover:border-violet-500/30 font-mono space-y-2 w-full max-w-full overflow-hidden">
+    <div className="p-3 sm:p-3.5 md:p-4 rounded-xl bg-slate-900/80 border border-slate-800 transition-all hover:border-violet-500/30 font-mono space-y-2 w-full min-w-0">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-start space-x-2.5 min-w-0 flex-1">
           <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center shrink-0 mt-0.5">
             {isCompleted ? (
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
             ) : isFlagged ? (
-              <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+              <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-400" />
             ) : (
-              <Clock className="w-3.5 h-3.5 text-slate-500" />
+              <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500" />
             )}
           </div>
           <div className="min-w-0 flex-1">
@@ -87,7 +87,7 @@ export const ChecklistTile: React.FC<ChecklistTileProps> = ({ item, onUpdateItem
                 className="p-1 sm:p-1.5 rounded-lg bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-white transition-all cursor-pointer"
                 title="Edit Response"
               >
-                <Edit3 className="w-3 h-3" />
+                <Edit3 className="w-3.5 h-3.5" />
               </button>
             ) : null}
           </div>
