@@ -5,17 +5,14 @@ from pydantic import Field
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Sonura VoiceOps Core API"
     VERSION: str = "1.0.0"
-    ENVIRONMENT: str = Field(default="development")
+    ENVIRONMENT: str = Field(default="production")
     
     # Security and CORS
     SECRET_KEY: str = Field(default="SUPER_SECRET_CHANGE_ME_IN_PRODUCTION_32_CHARS_MIN")
     CORS_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001"
+        "*"
     ]
-    ALLOWED_HOSTS: List[str] = ["localhost", "127.0.0.1"]
+    ALLOWED_HOSTS: List[str] = ["*"]
     
     # Supabase Database Settings
     SUPABASE_URL: str = Field(..., env="SUPABASE_URL")

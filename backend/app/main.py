@@ -22,14 +22,17 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=r".*",
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+    allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
+    if request.method == "OPTIONS":
+        return await call_next(request)
     response = await call_next(request)
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -44,7 +47,13 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "An internal server error occurred. Please check system logs."}
     )
 
-app.include_router(api_router, prefix="/api/v1")
+@app.get("/", tags=["Health Check"])
+async def root():
+    return {
+        "status": "online",
+        "system": settings.PROJECT_NAME,
+        "version": settings.VERSION
+    }
 
 @app.get("/health", tags=["Health Check"])
 async def health_check():
@@ -53,3 +62,5 @@ async def health_check():
         "environment": settings.ENVIRONMENT,
         "version": settings.VERSION
     }
+
+app.include_router(api_router, prefix="/api/v1")
