@@ -1,6 +1,6 @@
 import uuid
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from livekit import api
 from app.core.config import settings
 from app.ports.voice_port import VoicePort
@@ -8,10 +8,15 @@ from app.ports.voice_port import VoicePort
 logger = logging.getLogger("livekit-adapter")
 
 class LiveKitVoiceAdapter(VoicePort):
-    def __init__(self):
-        self.api_key = settings.LIVEKIT_API_KEY
-        self.api_secret = settings.LIVEKIT_API_SECRET
-        self.livekit_url = settings.LIVEKIT_URL
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        api_secret: Optional[str] = None,
+        livekit_url: Optional[str] = None
+    ):
+        self.api_key = api_key or settings.LIVEKIT_API_KEY
+        self.api_secret = api_secret or settings.LIVEKIT_API_SECRET
+        self.livekit_url = livekit_url or settings.LIVEKIT_URL
 
     async def generate_connection_token(self, room_name: str, participant_identity: str) -> str:
         unique_identity = f"{participant_identity}-{uuid.uuid4().hex[:6]}"

@@ -11,6 +11,9 @@ class FlexibleVoiceTokenRequest(BaseModel):
     unit_id: Optional[str] = Field(None, description="Inspection unit identifier")
     room_name: Optional[str] = Field(None, description="Direct WebRTC room name")
     participant_id: Optional[str] = Field(None, description="Participant identity")
+    custom_livekit_url: Optional[str] = Field(None, description="Ephemeral LiveKit URL for custom testing")
+    custom_livekit_api_key: Optional[str] = Field(None, description="Ephemeral LiveKit API Key for custom testing")
+    custom_livekit_api_secret: Optional[str] = Field(None, description="Ephemeral LiveKit API Secret for custom testing")
 
 class SessionTokenResponse(BaseModel):
     token: str
@@ -35,15 +38,30 @@ async def get_voice_token(
     resolved_room = f"inspection-unit-{resolved_unit}" if not resolved_unit.startswith("inspection-unit-") else resolved_unit
     resolved_identity = payload.participant_id or "field-inspector"
 
+    active_url = payload.custom_livekit_url or settings.LIVEKIT_URL
+    active_key = payload.custom_livekit_api_key or settings.LIVEKIT_API_KEY
+    active_secret = payload.custom_livekit_api_secret or settings.LIVEKIT_API_SECRET
+
+    if not active_url or not active_key or not active_secret:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="LiveKit credentials are not configured. Click the Key icon in the header to enter ephemeral session keys."
+        )
+
     try:
-        token = await voice_service.generate_connection_token(
+        adapter = LiveKitVoiceAdapter(
+            api_key=active_key,
+            api_secret=active_secret,
+            livekit_url=active_url
+        )
+        token = await adapter.generate_connection_token(
             room_name=resolved_room,
             participant_identity=resolved_identity
         )
         return SessionTokenResponse(
             token=token,
             room_name=resolved_room,
-            livekit_url=settings.LIVEKIT_URL
+            livekit_url=active_url
         )
     except Exception as e:
         raise HTTPException(

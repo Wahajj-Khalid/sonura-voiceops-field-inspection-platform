@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Sliders, Webhook, CheckCircle2, Save, Shield, Mic, Activity } from "lucide-react";
+import { Sliders, Webhook, CheckCircle2, Save, Shield, Mic, Activity, Lock, AlertCircle } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
@@ -25,6 +25,9 @@ const SPEECH_SPEED_OPTIONS: SelectOption[] = [
 
 export const SettingsPanel: React.FC = () => {
   const { user } = useAuth();
+  const orgKey = user?.org_id || "default_org";
+  const storageKey = `sonura_settings_${orgKey}`;
+
   const [voiceModel, setVoiceModel] = useState("aura-asteria-en");
   const [speechSpeed, setSpeechSpeed] = useState("1.0");
   const [webhookUrl, setWebhookUrl] = useState("https://primary-production.up.railway.app/webhook/sonura-audit");
@@ -32,22 +35,21 @@ export const SettingsPanel: React.FC = () => {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("sonura_settings");
+      const saved = localStorage.getItem(storageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed.voiceModel) setVoiceModel(parsed.voiceModel);
         if (parsed.speechSpeed) setSpeechSpeed(parsed.speechSpeed);
-        if (parsed.webhookUrl) setWebhookUrl(parsed.webhookUrl);
       }
     } catch (e) {
       console.error("Failed to restore settings:", e);
     }
-  }, []);
+  }, [storageKey]);
 
   const handleSave = () => {
     try {
-      const settingsPayload = { voiceModel, speechSpeed, webhookUrl };
-      localStorage.setItem("sonura_settings", JSON.stringify(settingsPayload));
+      const settingsPayload = { voiceModel, speechSpeed };
+      localStorage.setItem(storageKey, JSON.stringify(settingsPayload));
       setIsSaved(true);
       setTimeout(() => setIsSaved(false), 3000);
     } catch (e) {
@@ -63,7 +65,7 @@ export const SettingsPanel: React.FC = () => {
             Settings
           </h2>
           <p className="text-xs text-slate-400 mt-0.5 font-sans">
-            Configure neural voice copilot settings and outbound webhook automation triggers.
+            Configure tenant-specific voice copilot parameters and view automation integration status.
           </p>
         </div>
         <Button
@@ -75,18 +77,21 @@ export const SettingsPanel: React.FC = () => {
         </Button>
       </div>
 
-      {isSaved && (
+      {isSaved ? (
         <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/30 flex items-center space-x-2 text-xs text-emerald-300">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          <span>Operational parameters persisted successfully.</span>
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>Operational voice parameters persisted for {user?.organization || "your workspace"}.</span>
         </div>
-      )}
+      ) : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="space-y-4">
-          <div className="flex items-center space-x-2 pb-2 border-b border-slate-800">
-            <Sliders className="w-4 h-4 text-violet-400" />
-            <h3 className="text-sm font-bold text-white font-sans">Voice Copilot Engine Settings</h3>
+          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div className="flex items-center space-x-2">
+              <Sliders className="w-4 h-4 text-violet-400" />
+              <h3 className="text-sm font-bold text-white font-sans">Voice Copilot Engine Settings</h3>
+            </div>
+            <Badge variant="violet">ACTIVE IN WORKSPACE</Badge>
           </div>
 
           <Select
@@ -105,33 +110,43 @@ export const SettingsPanel: React.FC = () => {
             icon={<Activity className="w-4 h-4" />}
           />
 
-          <div className="pt-2 text-[11px] text-slate-500">
-            Powered by Deepgram Nova-2 and Groq Cloud inference.
+          <div className="pt-2 text-[11px] text-slate-400">
+            Settings apply across all active field inspections under {user?.organization || "this organization"}.
           </div>
         </Card>
 
-        <Card className="space-y-4">
-          <div className="flex items-center space-x-2 pb-2 border-b border-slate-800">
-            <Webhook className="w-4 h-4 text-cyan-400" />
-            <h3 className="text-sm font-bold text-white font-sans">Automation Webhook Triggers</h3>
+        {/* Disabled Webhook Integration Panel */}
+        <Card className="space-y-4 opacity-75 border-slate-800/80 bg-slate-950/40 relative select-none">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div className="flex items-center space-x-2 text-slate-400">
+              <Webhook className="w-4 h-4" />
+              <h3 className="text-sm font-bold text-slate-300 font-sans">Automation Webhook Triggers</h3>
+            </div>
+            <Badge variant="neutral">COMING IN V1.2</Badge>
+          </div>
+
+          <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 text-[11px] text-slate-400 flex items-start space-x-2">
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <span>Outbound webhooks are currently undergoing automated sandbox staging and will be enabled in release 1.2.</span>
           </div>
 
           <Input
-            label="Target Webhook URL (n8n, Zapier, or Slack Dispatcher)"
+            label="Target Webhook URL"
             type="url"
+            disabled={true}
             value={webhookUrl}
             onChange={(e) => setWebhookUrl(e.target.value)}
             placeholder="https://your-n8n-instance.com/webhook/audit"
-            icon={<Webhook className="w-4 h-4" />}
-            helperText="Dispatches an asynchronous JSON payload when an inspector logs a failure or a supervisor signs off."
+            icon={<Lock className="w-4 h-4 text-slate-600" />}
+            helperText="Feature locked. Enterprise n8n and Slack webhook routing in progress."
           />
 
-          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs space-y-1">
-            <span className="font-semibold text-slate-300 block font-sans">Active Event Triggers:</span>
+          <div className="p-3 rounded-xl bg-slate-900/40 border border-slate-800/60 text-xs space-y-1 opacity-60">
+            <span className="font-semibold text-slate-400 block font-sans">Planned Event Handlers:</span>
             <div className="flex flex-wrap gap-2 pt-1 text-[10px]">
-              <Badge variant="warning">ON_AUDIT_FLAGGED</Badge>
-              <Badge variant="success">ON_AUDIT_COMPLETED</Badge>
-              <Badge variant="info">ON_DEFECT_DETECTED</Badge>
+              <Badge variant="neutral">ON_AUDIT_FLAGGED</Badge>
+              <Badge variant="neutral">ON_AUDIT_COMPLETED</Badge>
+              <Badge variant="neutral">ON_DEFECT_DETECTED</Badge>
             </div>
           </div>
         </Card>

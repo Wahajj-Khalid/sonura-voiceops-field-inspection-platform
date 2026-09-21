@@ -137,10 +137,27 @@ export function useVoiceSession() {
         headers["Authorization"] = `Bearer ${token}`;
       }
 
+      let customKeys: any = {};
+      try {
+        if (typeof window !== "undefined") {
+          const storedEphemeral = sessionStorage.getItem("sonura_ephemeral_session_keys");
+          if (storedEphemeral) {
+            customKeys = JSON.parse(storedEphemeral);
+          }
+        }
+      } catch (e) {
+        // Fallback
+      }
+
       const tokenRes = await fetch(`${APP_CONFIG.apiUrl}/api/v1/voice/token`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ unit_id: unitId }),
+        body: JSON.stringify({
+          unit_id: unitId,
+          custom_livekit_url: customKeys.livekitUrl || null,
+          custom_livekit_api_key: customKeys.livekitKey || null,
+          custom_livekit_api_secret: customKeys.livekitSecret || null,
+        }),
         signal: abortController.signal,
       });
 
@@ -148,7 +165,7 @@ export function useVoiceSession() {
         throw new Error("Unable to obtain LiveKit token");
       }
 
-      const { token: connectionJwt } = await tokenRes.json();
+      const { token: connectionJwt, livekit_url: targetLivekitUrl } = await tokenRes.json();
       const mixedStream = await setupAudioMixer();
 
       if (mixedStream) {
@@ -252,7 +269,8 @@ export function useVoiceSession() {
         setIsAgentSpeaking(false);
       });
 
-      await room.connect(APP_CONFIG.livekitUrl, connectionJwt);
+      const effectiveLivekitUrl = targetLivekitUrl || customKeys.livekitUrl || APP_CONFIG.livekitUrl;
+      await room.connect(effectiveLivekitUrl, connectionJwt);
       await room.localParticipant.enableCameraAndMicrophone();
 
       const hasAgentAlready = Array.from(room.remoteParticipants.values()).some((p) => {

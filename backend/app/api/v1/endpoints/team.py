@@ -19,6 +19,10 @@ class TeamMemberUpdateRequest(BaseModel):
     role: Optional[str] = None
     is_active: Optional[bool] = None
 
+class TeamMemberStatusToggleRequest(BaseModel):
+    is_active: bool
+    reason: Optional[str] = Field(None, description="Administrative reason for status change")
+
 class TeamMemberReassignAndDeleteRequest(BaseModel):
     reassign_to_inspector: Optional[str] = Field(None, description="Inspector name to reassign pending sites to")
 
@@ -49,6 +53,55 @@ async def list_team_members(current_user: dict = Depends(get_current_user)):
         logger.error(f"Failed to fetch team members: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve team members.")
 
+@router.patch("/{member_id}/status", response_model=TeamMemberResponse)
+async def toggle_team_member_status(
+    member_id: str,
+    payload: TeamMemberStatusToggleRequest,
+    current_user: dict = Depends(require_roles(["org_admin", "super_admin"]))
+):
+    client = get_supabase_client()
+    user_org = current_user.get("org_id")
+    user_role = current_user.get("role", "inspector")
+
+    query = client.table("team_members").select("*").eq("id", member_id)
+    if user_role != "super_admin":
+        query = query.eq("org_id", user_org)
+
+    check = query.execute()
+    if not check.data or len(check.data) == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team member not found in your organization.")
+
+    target = check.data[0]
+    if target.get("role") == "Org Admin" and user_role != "super_admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only Super Administrators can suspend an Organization Administrator.")
+
+    try:
+        res = client.table("team_members").update({"is_active": payload.is_active}).eq("id", member_id).execute()
+        updated = res.data[0]
+
+        status_text = "restored" if payload.is_active else "suspended"
+        client.table("notifications").insert({
+            "org_id": target.get("org_id"),
+            "user_id": member_id,
+            "title": f"Account Access {status_text.capitalize()}",
+            "message": f"Your account access was {status_text} by an administrator. Reason: {payload.reason or 'Administrative update.'}",
+            "type": "info" if payload.is_active else "danger"
+        }).execute()
+
+        return TeamMemberResponse(
+            id=updated["id"],
+            org_id=updated["org_id"],
+            name=updated["name"],
+            email=updated["email"],
+            role=updated["role"],
+            audits_count=updated.get("audits_count", 0),
+            is_active=updated.get("is_active", True),
+            created_at=updated["created_at"]
+        )
+    except Exception as e:
+        logger.error(f"Failed to toggle member status: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update member status.")
+
 @router.get("/{member_id}/safety-check", response_model=TeamMemberSafetyCheck)
 async def check_team_member_safety(
     member_id: str,
@@ -73,10 +126,14 @@ async def check_team_member_safety(
         sites_query = sites_query.eq("org_id", org_id)
 
     active_sites_res = sites_query.execute()
-    assigned_sites = [f"{s['unit_id']} ({s['title']})" for s in (active_sites_res.data or []) if s.get("status") in ["in_progress", "pending"]]
+    assigned_sites = [
+        f"{s['unit_id']} ({s['title']})" 
+        for s in (active_sites_res.data or []) 
+        if s.get("status") in ["in_progress", "pending"]
+    ]
 
     can_delete = len(assigned_sites) == 0
-    warning = f"Member is currently assigned to {len(assigned_sites)} active facility sites. Reassignment recommended before removal." if not can_delete else None
+    warning = f"Member is assigned to {len(assigned_sites)} active facility sites. Reassign sites before removal." if not can_delete else None
 
     return TeamMemberSafetyCheck(
         can_delete_or_suspend=can_delete,

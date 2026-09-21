@@ -3,20 +3,19 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { 
   ChevronLeft, 
-  Building2, 
   Users, 
-  ListChecks, 
   BookOpen, 
   History, 
   Radio, 
-  Eye, 
-  AlertCircle,
-  HardDrive
+  HardDrive,
+  UserX,
+  UserCheck
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { MetricCard } from "../../components/ui/metric-card";
 import { Modal } from "../../components/ui/modal";
+import { ConfirmationModal } from "../../components/ui/confirmation-modal";
 import { useAuth } from "../auth/auth-context";
 import { APP_CONFIG } from "../../config/constants";
 
@@ -34,7 +33,6 @@ export const TenantDrilldown: React.FC<TenantDrilldownProps> = ({ orgId, onBack,
   const [activeTab, setActiveTab] = useState<DrilldownTab>("overview");
   const [isLoading, setIsLoading] = useState(true);
 
-  // Deep inspect modal state
   const [inspectModal, setInspectModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -45,6 +43,16 @@ export const TenantDrilldown: React.FC<TenantDrilldownProps> = ({ orgId, onBack,
     title: "",
     subtitle: "",
     content: null,
+  });
+
+  const [userStatusModal, setUserStatusModal] = useState<{
+    isOpen: boolean;
+    user: any | null;
+    targetStatus: boolean;
+  }>({
+    isOpen: false,
+    user: null,
+    targetStatus: false,
   });
 
   const fetchTenantDetails = useCallback(async () => {
@@ -64,6 +72,30 @@ export const TenantDrilldown: React.FC<TenantDrilldownProps> = ({ orgId, onBack,
   useEffect(() => {
     fetchTenantDetails();
   }, [fetchTenantDetails]);
+
+  const handleToggleUserStatus = async () => {
+    if (!userStatusModal.user) return;
+    const target = userStatusModal.user;
+    const newStatus = userStatusModal.targetStatus;
+
+    try {
+      const res = await authFetch(`${APP_CONFIG.apiUrl}/api/v1/team/${target.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          is_active: newStatus,
+          reason: newStatus ? "Restored by Super Admin" : "Suspended by Platform Super Administrator",
+        }),
+      });
+
+      if (res.ok) {
+        fetchTenantDetails();
+        setUserStatusModal({ isOpen: false, user: null, targetStatus: false });
+      }
+    } catch (e) {
+      console.error("Error modifying member status:", e);
+    }
+  };
 
   if (isLoading || !drillData) {
     return (
@@ -85,7 +117,6 @@ export const TenantDrilldown: React.FC<TenantDrilldownProps> = ({ orgId, onBack,
     { id: "audits", label: "Audit Records", count: audits.length },
   ];
 
-  // Inspect Checklist Protocol
   const handleInspectTemplate = (tmpl: any) => {
     const rawItems = tmpl.items || [];
     setInspectModal({
@@ -110,7 +141,6 @@ export const TenantDrilldown: React.FC<TenantDrilldownProps> = ({ orgId, onBack,
     });
   };
 
-  // Inspect Site Facility
   const handleInspectSite = (site: any) => {
     setInspectModal({
       isOpen: true,
@@ -130,31 +160,21 @@ export const TenantDrilldown: React.FC<TenantDrilldownProps> = ({ orgId, onBack,
     });
   };
 
-  // Inspect User Account
-  const handleInspectUser = (user: any) => {
-    setInspectModal({
-      isOpen: true,
-      title: user.name,
-      subtitle: `Authorization: ${user.role} • ${user.email}`,
-      content: (
-        <div className="space-y-3 font-mono text-xs text-slate-300">
-          <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1.5">
-            <div>User ID: <strong>{user.id}</strong></div>
-            <div>Email: <strong className="text-cyan-400">{user.email}</strong></div>
-            <div>Role Scope: <strong className="text-violet-400">{user.role}</strong></div>
-            <div>Completed Audits: <strong className="text-emerald-400">{user.audits_count} Audits</strong></div>
-            <div>Active Account Status: <strong className={user.is_active ? "text-emerald-400" : "text-rose-400"}>{user.is_active ? "Active" : "Deactivated"}</strong></div>
-            <div>Account Created: <strong>{new Date(user.created_at).toLocaleString()}</strong></div>
-          </div>
-        </div>
-      ),
-    });
-  };
+  const weeklyTrend = analytics.weekly_trend || [
+    { day: "Mon", count: 1 },
+    { day: "Tue", count: 2 },
+    { day: "Wed", count: 1 },
+    { day: "Thu", count: 0 },
+    { day: "Fri", count: 3 },
+    { day: "Sat", count: 1 },
+    { day: "Sun", count: 2 },
+  ];
 
   return (
     <div className="space-y-6 font-mono">
       <div className="flex items-center justify-between">
         <button
+          type="button"
           onClick={onBack}
           className="inline-flex items-center space-x-1.5 text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
         >
@@ -176,11 +196,11 @@ export const TenantDrilldown: React.FC<TenantDrilldownProps> = ({ orgId, onBack,
         </p>
       </div>
 
-      {/* Sub-Navigation Tabs */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-800 pb-2 text-xs">
         {tabs.map((t) => (
           <button
             key={t.id}
+            type="button"
             onClick={() => setActiveTab(t.id)}
             className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
               activeTab === t.id
@@ -194,7 +214,7 @@ export const TenantDrilldown: React.FC<TenantDrilldownProps> = ({ orgId, onBack,
       </div>
 
       {/* 1. OVERVIEW TAB */}
-      {activeTab === "overview" && (
+      {activeTab === "overview" ? (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard
@@ -259,19 +279,19 @@ export const TenantDrilldown: React.FC<TenantDrilldownProps> = ({ orgId, onBack,
                     {organization.is_active ? "Operational" : "Suspended"}
                   </strong>
                 </div>
-                {organization.suspension_reason && (
+                {organization.suspension_reason ? (
                   <div className="py-1 text-rose-400 text-[11px]">
                     Reason: {organization.suspension_reason}
                   </div>
-                )}
+                ) : null}
               </div>
             </Card>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* 2. ANALYTICS TAB */}
-      {activeTab === "analytics" && (
+      {activeTab === "analytics" ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
           <Card className="p-5 space-y-3">
             <h4 className="font-bold text-white uppercase tracking-wider font-sans">Audit Pass Breakdown</h4>
@@ -304,29 +324,66 @@ export const TenantDrilldown: React.FC<TenantDrilldownProps> = ({ orgId, onBack,
               </div>
             </div>
           </Card>
-        </div>
-      )}
 
-      {/* 3. USERS TAB */}
-      {activeTab === "users" && (
+          <Card className="p-5 space-y-3">
+            <h4 className="font-bold text-white uppercase tracking-wider font-sans">7-Day Audit Velocity</h4>
+            <div className="flex items-end justify-between h-20 pt-3 border-b border-slate-800 pb-1">
+              {weeklyTrend.map((item: any, idx: number) => {
+                const heightPct = Math.min(100, Math.max(15, item.count * 25));
+                return (
+                  <div key={idx} className="flex flex-col items-center space-y-1">
+                    <div
+                      style={{ height: `${heightPct}%` }}
+                      className="w-4 rounded-t bg-violet-500 hover:bg-violet-400 transition-all"
+                    />
+                    <span className="text-[10px] text-slate-500">{item.day}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <span className="text-[10px] text-slate-500 block text-center">Live Daily Audit Activity</span>
+          </Card>
+        </div>
+      ) : null}
+
+      {/* 3. USERS TAB WITH SUSPEND / RESUME CONTROLS */}
+      {activeTab === "users" ? (
         <Card className="p-0 overflow-hidden text-xs">
           {members.length > 0 ? (
             <div className="divide-y divide-slate-800">
               {members.map((m: any) => (
                 <div 
                   key={m.id} 
-                  onClick={() => handleInspectUser(m)}
-                  className="p-4 flex items-center justify-between hover:bg-white/5 transition-all cursor-pointer"
+                  className="p-4 flex flex-wrap items-center justify-between gap-3 hover:bg-white/5 transition-all"
                 >
-                  <div>
-                    <span className="text-slate-200 font-bold block font-sans">{m.name}</span>
+                  <div className="min-w-0">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-slate-200 font-bold block font-sans">{m.name}</span>
+                      <Badge variant={m.is_active ? "success" : "danger"} className="text-[9px] px-1.5 py-0.2">
+                        {m.is_active ? "ACTIVE" : "SUSPENDED"}
+                      </Badge>
+                    </div>
                     <span className="text-[11px] text-slate-400">{m.email}</span>
                   </div>
+
                   <div className="flex items-center space-x-2">
-                    <span className="text-slate-500">{m.audits_count} Audits</span>
+                    <span className="text-slate-500 hidden sm:inline mr-2">{m.audits_count} Audits</span>
                     <Badge variant={m.role === "Org Admin" ? "violet" : m.role === "Supervisor" ? "info" : "neutral"}>
                       {m.role}
                     </Badge>
+
+                    <button
+                      type="button"
+                      onClick={() => setUserStatusModal({ isOpen: true, user: m, targetStatus: !m.is_active })}
+                      className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                        m.is_active
+                          ? "bg-slate-800 text-slate-400 hover:text-amber-400 hover:border-amber-500/40"
+                          : "bg-emerald-950/60 border-emerald-500/30 text-emerald-400 hover:text-emerald-300"
+                      }`}
+                      title={m.is_active ? "Suspend Member" : "Resume Member"}
+                    >
+                      {m.is_active ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                    </button>
                   </div>
                 </div>
               ))}
@@ -337,10 +394,10 @@ export const TenantDrilldown: React.FC<TenantDrilldownProps> = ({ orgId, onBack,
             </div>
           )}
         </Card>
-      )}
+      ) : null}
 
       {/* 4. SITES TAB */}
-      {activeTab === "sites" && (
+      {activeTab === "sites" ? (
         <Card className="p-0 overflow-hidden text-xs">
           {sites.length > 0 ? (
             <div className="divide-y divide-slate-800">
@@ -369,10 +426,10 @@ export const TenantDrilldown: React.FC<TenantDrilldownProps> = ({ orgId, onBack,
             </div>
           )}
         </Card>
-      )}
+      ) : null}
 
       {/* 5. TEMPLATES TAB */}
-      {activeTab === "templates" && (
+      {activeTab === "templates" ? (
         <div>
           {templates.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -397,10 +454,10 @@ export const TenantDrilldown: React.FC<TenantDrilldownProps> = ({ orgId, onBack,
             </Card>
           )}
         </div>
-      )}
+      ) : null}
 
       {/* 6. MANUALS TAB */}
-      {activeTab === "manuals" && (
+      {activeTab === "manuals" ? (
         <div>
           {manuals.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -420,10 +477,10 @@ export const TenantDrilldown: React.FC<TenantDrilldownProps> = ({ orgId, onBack,
             </Card>
           )}
         </div>
-      )}
+      ) : null}
 
       {/* 7. AUDITS TAB */}
-      {activeTab === "audits" && (
+      {activeTab === "audits" ? (
         <Card className="p-0 overflow-hidden text-xs">
           {audits.length > 0 ? (
             <div className="divide-y divide-slate-800">
@@ -438,6 +495,7 @@ export const TenantDrilldown: React.FC<TenantDrilldownProps> = ({ orgId, onBack,
                       {a.status.toUpperCase()}
                     </Badge>
                     <button
+                      type="button"
                       onClick={() => onOpenReport(a.unit_id)}
                       className="text-xs text-violet-400 hover:text-violet-300 font-bold cursor-pointer"
                     >
@@ -453,9 +511,8 @@ export const TenantDrilldown: React.FC<TenantDrilldownProps> = ({ orgId, onBack,
             </div>
           )}
         </Card>
-      )}
+      ) : null}
 
-      {/* Detailed Drill-Down Inspect Modal */}
       <Modal 
         isOpen={inspectModal.isOpen} 
         onClose={() => setInspectModal((prev) => ({ ...prev, isOpen: false }))}
@@ -470,6 +527,21 @@ export const TenantDrilldown: React.FC<TenantDrilldownProps> = ({ orgId, onBack,
           {inspectModal.content}
         </div>
       </Modal>
+
+      {/* User Suspension Confirmation Modal for Super Admin */}
+      <ConfirmationModal
+        isOpen={userStatusModal.isOpen}
+        onClose={() => setUserStatusModal({ isOpen: false, user: null, targetStatus: false })}
+        onConfirm={handleToggleUserStatus}
+        title={userStatusModal.targetStatus ? `Restore Access for ${userStatusModal.user?.name}` : `Suspend ${userStatusModal.user?.name}`}
+        message={
+          userStatusModal.targetStatus
+            ? `Restore login access for ${userStatusModal.user?.name}? The member will be able to access the console immediately.`
+            : `Suspend login access for ${userStatusModal.user?.name}? The member will be immediately blocked from signing in.`
+        }
+        confirmText={userStatusModal.targetStatus ? "Restore Access" : "Suspend User"}
+        variant={userStatusModal.targetStatus ? "success" : "warning"}
+      />
     </div>
   );
 };
