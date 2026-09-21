@@ -20,6 +20,7 @@ The application is deployed and can be accessed directly at: [Sonura Platform](h
 * **Vector Knowledge Base**: FastEmbed in-memory local embeddings (`BAAI/bge-small-en-v1.5`, 384 dimensions) with Supabase PGVector cosine similarity RPC
 * **Multimodal Defect Triage**: Google Gemini Vision AI via resilient multi-model fallback adapter
 * **Transactional Email**: Resend via transactional email port adapter
+* **Live Session Testing**: In-memory ephemeral session credential injection for LiveKit and Gemini
 
 ---
 
@@ -35,7 +36,7 @@ project-root/
 │   ├── .dockerignore                     # Docker build exclusions for backend
 │   ├── .python-version                   # Backend Python version lock (3.12.9)
 │   ├── Dockerfile                        # Multi-stage Python 3.12 slim container
-│   ├── requirements.txt                  # Python dependencies
+│   ├── requirements.txt                  # Consolidated Python dependencies
 │   ├── migrations/
 │   │   └── 001_initial_schema.sql        # Supabase PostgreSQL schema and RPC functions
 │   ├── scripts/
@@ -123,13 +124,14 @@ project-root/
         │   │   ├── hero-section.tsx      # Platform hero banner and CTA
         │   │   ├── navbar.tsx            # Sticky navigation bar with quick search
         │   │   ├── pricing-section.tsx   # Subscription plan tiers and quotas
-        │   │   ├── quicklinks-section.tsx # Platform quick links footer navigation
+        │   │   ├── quicklinks-section.tsx # Centered brand and responsive link columns
         │   │   ├── search-modal.tsx      # Interactive platform search modal
         │   │   └── security-section.tsx  # RLS and cryptographic security highlights
         │   ├── layout/                   # Global application shells
         │   │   ├── app-header.tsx        # Top header with user profile and alerts
         │   │   ├── app-sidebar.tsx       # Collapsible role-tailored navigation sidebar
-        │   │   └── dashboard-shell.tsx   # Responsive margin-aware workspace container
+        │   │   ├── dashboard-shell.tsx   # Responsive padding-aware workspace container
+        │   │   └── ephemeral-keys-modal.tsx # In-memory live session credentials manager
         │   └── ui/                       # Flat atomic UI primitives
         │       ├── badge.tsx             # Themed status badges
         │       ├── button.tsx            # Interactive button component
@@ -199,7 +201,8 @@ project-root/
 * **Dual-Channel Audio Evidence Vault**: Captures mixed audio of both the technician microphone and the remote AI assistant, uploading sessions to Supabase Storage with authenticated private 1-hour signed playback URLs.
 * **Verifiable Single-Page Compliance Certificates**: Formats completed inspection telemetry, AI safety evaluations, itemized readings, and evidence photos into an audit-ready, single-page A4 compliance certificate with one-click print styling.
 * **Strict Multi-Tenant Row-Level Security**: Isolates data across organizations using PostgreSQL RLS policies, cryptographic HS256 JWT claims, and Pydantic v2 payload sanitization against SQL injection and prompt manipulation.
-* **Memory-Optimized Containerization**: Docker Compose deployment with multi-stage builds, Node 20 Alpine standalone output, and single-worker Python processes engineered to compile and run smoothly within strict 512 MB RAM limits.
+* **Ephemeral Session Keys (BYOK for Live Testing)**: Evaluators can test live voice calls against their own LiveKit and Gemini instances by clicking the Key icon in the header. Credentials exist strictly in active browser memory and are permanently wiped on page refresh.
+* **Memory-Conscious Architecture**: Multi-stage build design with Node 20 Alpine standalone output, Pydantic Settings fallback loading, and low-footprint single-worker Python execution.
 
 ---
 
@@ -241,6 +244,20 @@ project-root/
 |                   | - (Restricted from template modification, review sign-off, and settings)     |
 +-------------------+-------------------------------------------------------------------------------+
 ```
+
+---
+
+## Cloud Deployment Constraints and Resolution
+
+### The 512 MB Free Tier Memory Constraint
+Running both the **FastEmbed ONNX Vector Model** (~220 MB RAM) and a **LiveKit WebRTC Voice Worker** (~230 MB RAM) simultaneously inside a single free-tier container (such as Render's 512 MB limit) causes immediate Linux Out-Of-Memory (OOM) kernel termination during active audio handshakes.
+
+### Operational Resolution
+
+1. **Production Cloud Deployment**: The cloud-hosted FastAPI backend runs purely as a high-speed REST API and vector query service (~75 MB RAM), completely eliminating OOM restarts.
+2. **Real-Time Voice Streaming Options**:
+   * **Option A (Zero-Lag Hybrid Execution)**: The voice agent worker is executed on any local terminal or developer machine via `python -m app.agent.voice_agent dev`. Because LiveKit connects outbound via WebSockets to `wss://sonura-qw29qnzq.livekit.cloud`, the local worker immediately services live WebRTC calls placed from the public Render production frontend.
+   * **Option B (Ephemeral Browser Session Keys)**: Users evaluating the live deployment without access to server environment secrets can click the Key icon in the top header and provide their own LiveKit credentials. The frontend requests dynamically signed tokens for their specific LiveKit project on the fly.
 
 ---
 
@@ -294,7 +311,7 @@ Execute the complete schema and RPC definition file `backend/migrations/001_init
 
 ## Running the Application
 
-### Option A: Running via Docker Compose (Recommended)
+### Option A: Running via Docker Compose (Recommended for Full Stack)
 
 Build and launch all services in detached mode:
 
@@ -316,7 +333,7 @@ Access the interfaces:
 
 ### Option B: Running via Native Commands
 
-#### Start the FastAPI Backend Server
+#### 1. Start the FastAPI Backend Server
 
 ```bash
 cd backend
@@ -326,7 +343,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-#### Start the LiveKit Voice Agent Worker
+#### 2. Start the LiveKit Voice Agent Worker
 
 ```bash
 cd backend
@@ -334,7 +351,7 @@ source venv/bin/activate
 python -m app.agent.voice_agent dev
 ```
 
-#### Start the Next.js Frontend
+#### 3. Start the Next.js Frontend
 
 ```bash
 cd frontend
@@ -377,4 +394,4 @@ For testing and local verification, the default migration seeds the following ro
 * **Resilient Vision Discovery**: The vision adapter queries Google Gemini models using the `x-goog-api-key` header, automatically attempting active model endpoints (`gemini-3.6-flash`, `gemini-flash-latest`, `gemini-3.7-flash`) before dynamic discovery, preventing request timeouts.
 * **WebM Duration Reconciliation**: The audio evidence player implements client-side seeking fallbacks to calculate accurate audio durations for WebM streams recorded in Chromium browsers.
 * **Modal Draft Persistence**: All creation modals (Site registration, Checklist builder, Team invitations, Tenant provisioning) automatically cache unsaved form drafts in `localStorage` to avoid data loss on accidental backdrop clicks.
-* **Non-Overflowing Checklist Layout**: Checkpoint responses and defect alerts dynamically wrap within fluid card containers, preventing text clipping across mobile and ultrawide viewports.
+* **Responsive Layout Integrity**: Checkpoint responses and telemetry alerts wrap within fluid card containers, with responsive padding offsets (`lg:pl-64` and `lg:pl-20`) preventing sidebar clipping across mobile, tablet, and desktop viewports.
