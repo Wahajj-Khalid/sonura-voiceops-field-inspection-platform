@@ -1,7 +1,9 @@
 import os
 import sys
+import gc
 import json
 import logging
+import asyncio
 import httpx
 from typing import Optional, List, Dict
 from dotenv import load_dotenv
@@ -184,6 +186,8 @@ async def entrypoint(ctx: JobContext):
     logger.info(f"Connecting to Voice Room: {ctx.room.name}")
     await ctx.connect()
 
+    gc.collect()
+
     inspection_id = ctx.room.name.replace("inspection-unit-", "")
 
     client = get_supabase()
@@ -234,7 +238,6 @@ RULES:
             msg = json.loads(text)
             if msg.get("type") == "vision_defect_detected":
                 announcement = msg.get("announcement", "Defect photo received.")
-                import asyncio
                 asyncio.create_task(session.say(announcement))
         except Exception as e:
             logger.error(f"Error handling vision data packet: {e}")
@@ -243,7 +246,7 @@ RULES:
     await session.say("Sonura connected. What equipment item would you like to inspect first?")
 
 if __name__ == "__main__":
-    assigned_port = int(os.getenv("PORT", "8081"))
+    assigned_port = int(os.getenv("PORT", "10000"))
     cli.run_app(
         WorkerOptions(
             entrypoint_fnc=entrypoint,

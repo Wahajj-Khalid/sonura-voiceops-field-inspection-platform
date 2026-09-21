@@ -13,3 +13,4 @@ livekit-plugins-deepgram
 python-multipart>=0.0.9
 fastembed>=0.3.0
 pypdf>=4.0.0
+python-dotenv>=1.0.0
