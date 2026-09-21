@@ -1,3 +1,6 @@
+import asyncio
+import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -8,13 +11,31 @@ from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.api.v1.router import api_router
 
+logger = logging.getLogger("sonura-main")
 limiter = Limiter(key_func=get_remote_address)
+
+async def start_voice_agent_task():
+    if not settings.LIVEKIT_URL or not settings.LIVEKIT_API_KEY:
+        logger.warning("LiveKit credentials not configured. Embedded voice agent skipped.")
+        return
+    try:
+        from app.agent.voice_agent import run_embedded_voice_worker
+        await run_embedded_voice_worker()
+    except Exception as e:
+        logger.error(f"Embedded LiveKit Voice Worker error: {str(e)}")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    worker_task = asyncio.create_task(start_voice_agent_task())
+    yield
+    worker_task.cancel()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
     docs_url="/docs" if settings.ENVIRONMENT == "development" else None,
-    redoc_url=None
+    redoc_url=None,
+    lifespan=lifespan
 )
 
 app.state.limiter = limiter

@@ -15,7 +15,7 @@ if project_root not in sys.path:
 load_dotenv()
 
 from livekit import agents
-from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli, function_tool, RunContext
+from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli, function_tool, RunContext, Worker
 from livekit.plugins import deepgram, openai
 from supabase import create_client, Client
 
@@ -45,7 +45,7 @@ class SonuraInspectionAgent(Agent):
         """Query technical equipment manuals or safety specs using remote vector RAG search."""
         logger.info(f"[TOOL CALL] Querying RAG Manual: {query}")
         try:
-            api_base = getattr(settings, "BACKEND_API_URL", "http://localhost:8000")
+            api_base = getattr(settings, "BACKEND_API_URL", "http://127.0.0.1:8000")
             async with httpx.AsyncClient(timeout=8.0) as client:
                 res = await client.post(
                     f"{api_base}/api/v1/rag/query",
@@ -245,11 +245,17 @@ RULES:
     await session.start(room=ctx.room, agent=agent)
     await session.say("Sonura connected. What equipment item would you like to inspect first?")
 
-if __name__ == "__main__":
-    assigned_port = int(os.getenv("PORT", "10000"))
-    cli.run_app(
-        WorkerOptions(
-            entrypoint_fnc=entrypoint,
-            port=assigned_port
-        )
+async def run_embedded_voice_worker():
+    """Runs the LiveKit agent worker directly within the FastAPI async event loop."""
+    logger.info("Initializing embedded LiveKit Voice Agent within FastAPI event loop...")
+    opts = WorkerOptions(
+        entrypoint_fnc=entrypoint,
+        ws_url=settings.LIVEKIT_URL,
+        api_key=settings.LIVEKIT_API_KEY,
+        api_secret=settings.LIVEKIT_API_SECRET
     )
+    worker = Worker(opts)
+    await worker.run()
+
+if __name__ == "__main__":
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
