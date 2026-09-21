@@ -250,7 +250,6 @@ if __name__ == "__main__":
     cli.run_app(
         WorkerOptions(
             entrypoint_fnc=entrypoint,
-            num_idle_processes=0,
             port=assigned_port
         )
     )
