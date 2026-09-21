@@ -1,8 +1,9 @@
+import type { Metadata } from "next";
 import "./globals.css";
 import { APP_CONFIG } from "../config/constants";
 import { AuthProvider } from "../features/auth/auth-context";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: APP_CONFIG.tabTitle,
   description: APP_CONFIG.tagline,
   icons: {
@@ -17,9 +18,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <head>
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-      </head>
       <body className="bg-[#06080d] text-slate-100 antialiased min-h-screen">
         <AuthProvider>
           {children}

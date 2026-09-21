@@ -26,22 +26,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setToken(null);
     try {
-      localStorage.removeItem("sonura_token");
-      localStorage.removeItem("sonura_user");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("sonura_token");
+        localStorage.removeItem("sonura_user");
+      }
     } catch (e) {
       console.error("Storage clear error:", e);
     }
-    router.push("/login");
+    if (typeof window !== "undefined") {
+      router.push("/login");
+    }
   }, [router]);
 
   useEffect(() => {
     try {
-      const storedToken = localStorage.getItem("sonura_token");
-      const storedUser = localStorage.getItem("sonura_user");
-      if (storedToken) {
-        if (storedUser) {
-          setToken(storedToken);
-          setUser(JSON.parse(storedUser));
+      if (typeof window !== "undefined") {
+        const storedToken = localStorage.getItem("sonura_token");
+        const storedUser = localStorage.getItem("sonura_user");
+        if (storedToken) {
+          if (storedUser) {
+            setToken(storedToken);
+            setUser(JSON.parse(storedUser));
+          }
         }
       }
     } catch (e) {
@@ -66,10 +72,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setToken(data.access_token);
       setUser(data.user);
-      localStorage.setItem("sonura_token", data.access_token);
-      localStorage.setItem("sonura_user", JSON.stringify(data.user));
-
-      router.push("/dashboard");
+      if (typeof window !== "undefined") {
+        localStorage.setItem("sonura_token", data.access_token);
+        localStorage.setItem("sonura_user", JSON.stringify(data.user));
+        router.push("/dashboard");
+      }
       return { success: true };
     } catch (err) {
       return { success: false, error: "Network error connecting to backend gateway." };
