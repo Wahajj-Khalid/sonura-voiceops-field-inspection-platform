@@ -7,11 +7,12 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     ENVIRONMENT: str = Field(default="production")
     
+    # Internal routing
+    BACKEND_API_URL: str = Field(default="http://localhost:8000", env="BACKEND_API_URL")
+
     # Security and CORS
     SECRET_KEY: str = Field(default="SUPER_SECRET_CHANGE_ME_IN_PRODUCTION_32_CHARS_MIN")
-    CORS_ORIGINS: List[str] = [
-        "*"
-    ]
+    CORS_ORIGINS: List[str] = ["*"]
     ALLOWED_HOSTS: List[str] = ["*"]
     
     # Supabase Database Settings
