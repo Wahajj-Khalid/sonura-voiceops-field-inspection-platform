@@ -21,7 +21,7 @@ from supabase import create_client, Client
 
 from app.core.config import settings
 from app.core.constants import GROQ_MODEL, GROQ_BASE_URL, DEEPGRAM_STT_MODEL, DEEPGRAM_TTS_VOICE, DEFAULT_ORG_ID
-from app.domain.models import InspectionStatus
+from app.domain.common import InspectionStatus
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("sonura-voice-agent")
@@ -108,7 +108,7 @@ class SonuraInspectionAgent(Agent):
 
         if target_index == -1:
             for idx, itm in enumerate(raw_items):
-                if itm.get("status") == "pending":
+                if itm.get("status") == InspectionStatus.PENDING.value:
                     target_index = idx
                     break
 
@@ -116,7 +116,7 @@ class SonuraInspectionAgent(Agent):
             return "All checkpoints have recorded values. Ask technician if they want to submit the report."
 
         raw_items[target_index]["response"] = response
-        raw_items[target_index]["status"] = "completed"
+        raw_items[target_index]["status"] = InspectionStatus.COMPLETED.value
 
         client.table("inspections").update({"items": raw_items}).eq("id", inspection_record["id"]).execute()
 
@@ -141,7 +141,7 @@ class SonuraInspectionAgent(Agent):
         except Exception as err:
             logger.error(f"Failed to publish dialogue packet: {err}")
 
-        remaining = sum(1 for i in raw_items if i.get("status") != "completed")
+        remaining = sum(1 for i in raw_items if i.get("status") != InspectionStatus.COMPLETED.value)
         if remaining == 0:
             return f"Logged '{response}' for checkpoint {raw_items[target_index]['item_id']}. All checkpoints are complete. Ask technician: 'All checkpoints are verified. Would you like me to submit the audit for supervisor review?'"
         
@@ -160,7 +160,7 @@ class SonuraInspectionAgent(Agent):
 
         inspection_record = res.data[0]
         client.table("inspections").update({
-            "status": "completed"
+            "status": InspectionStatus.COMPLETED.value
         }).eq("id", inspection_record["id"]).execute()
 
         client.table("notifications").insert({
