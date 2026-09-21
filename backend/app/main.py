@@ -1,3 +1,5 @@
+import os
+import sys
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -14,21 +16,36 @@ from app.api.v1.router import api_router
 logger = logging.getLogger("sonura-main")
 limiter = Limiter(key_func=get_remote_address)
 
-async def start_voice_agent_task():
-    if not settings.LIVEKIT_URL or not settings.LIVEKIT_API_KEY:
-        logger.warning("LiveKit credentials not configured. Embedded voice agent skipped.")
-        return
-    try:
-        from app.agent.voice_agent import run_embedded_voice_worker
-        await run_embedded_voice_worker()
-    except Exception as e:
-        logger.error(f"Embedded LiveKit Voice Worker error: {str(e)}")
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    worker_task = asyncio.create_task(start_voice_agent_task())
+    agent_process = None
+    if settings.LIVEKIT_URL and settings.LIVEKIT_API_KEY:
+        try:
+            current_env = dict(os.environ)
+            current_env["PYTHONPATH"] = os.getenv("PYTHONPATH", "/opt/render/project/src/backend")
+            
+            agent_process = await asyncio.create_subprocess_exec(
+                sys.executable,
+                "-m",
+                "app.agent.voice_agent",
+                "dev",
+                env=current_env
+            )
+            logger.info(f"LiveKit Voice Agent background process launched (PID: {agent_process.pid})")
+        except Exception as e:
+            logger.error(f"Failed to launch background voice agent process: {str(e)}")
+    else:
+        logger.warning("LiveKit credentials not configured. Voice agent worker disabled.")
+
     yield
-    worker_task.cancel()
+
+    if agent_process:
+        try:
+            agent_process.terminate()
+            await agent_process.wait()
+            logger.info("LiveKit Voice Agent background process terminated.")
+        except Exception:
+            pass
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -68,7 +85,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "An internal server error occurred. Please check system logs."}
     )
 
-@app.get("/", tags=["Health Check"])
+@app.api_route("/", methods=["GET", "HEAD"], tags=["Health Check"])
 async def root():
     return {
         "status": "online",
@@ -76,7 +93,7 @@ async def root():
         "version": settings.VERSION
     }
 
-@app.get("/health", tags=["Health Check"])
+@app.api_route("/health", methods=["GET", "HEAD"], tags=["Health Check"])
 async def health_check():
     return {
         "status": "healthy",

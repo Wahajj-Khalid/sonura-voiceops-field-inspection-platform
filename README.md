@@ -8,7 +8,7 @@ The architecture strictly adheres to Hexagonal Architecture (Ports and Adapters)
 
 ## Live Deployment
 
-The application is deployed and can be accessed directly at:: [Sonura](link_here)
+The application is deployed and can be accessed directly at: [Sonura](https://sonura-voiceops-field-inspection-dn42.onrender.com/)
 
 ## System Architecture
 
