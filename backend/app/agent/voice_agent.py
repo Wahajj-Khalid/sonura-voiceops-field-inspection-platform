@@ -1,7 +1,13 @@
+import os
+import sys
 import json
 import logging
 from typing import Optional, List, Dict
 from dotenv import load_dotenv
+
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 load_dotenv()
 
@@ -11,15 +17,27 @@ from livekit.plugins import deepgram, openai
 
 from app.core.config import settings
 from app.core.constants import GROQ_MODEL, GROQ_BASE_URL, DEEPGRAM_STT_MODEL, DEEPGRAM_TTS_VOICE
-from app.adapters.rag.vector_rag_adapter import VectorRAGAdapter
-from app.adapters.db.supabase_adapter import SupabaseAdapter
 from app.domain.models import RAGQuery, InspectionStatus
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("sonura-voice-agent")
 
-rag_adapter = VectorRAGAdapter()
-db_adapter = SupabaseAdapter()
+_lazy_rag_adapter = None
+_lazy_db_adapter = None
+
+def get_rag_adapter():
+    global _lazy_rag_adapter
+    if _lazy_rag_adapter is None:
+        from app.adapters.rag.vector_rag_adapter import VectorRAGAdapter
+        _lazy_rag_adapter = VectorRAGAdapter()
+    return _lazy_rag_adapter
+
+def get_db_adapter():
+    global _lazy_db_adapter
+    if _lazy_db_adapter is None:
+        from app.adapters.db.supabase_adapter import SupabaseAdapter
+        _lazy_db_adapter = SupabaseAdapter()
+    return _lazy_db_adapter
 
 class SonuraInspectionAgent(Agent):
     def __init__(self, inspection_id: str, system_prompt: str, ctx: JobContext):
@@ -32,7 +50,8 @@ class SonuraInspectionAgent(Agent):
         """Query technical equipment manuals or safety specs using local vector RAG search."""
         logger.info(f"[TOOL CALL] Querying RAG Manual: {query}")
         try:
-            result = await rag_adapter.query_knowledge_base(RAGQuery(query=query, top_k=2))
+            rag_service = get_rag_adapter()
+            result = await rag_service.query_knowledge_base(RAGQuery(query=query, top_k=2))
             
             data_packet = json.dumps({
                 "type": "transcript",
@@ -55,20 +74,19 @@ class SonuraInspectionAgent(Agent):
         """Log a measurement or verification status for a specific checklist item ID (e.g. '1', '2', '3', '4')."""
         logger.info(f"[TOOL CALL] Log Request: item_id='{item_id}', response='{response}'")
         
-        inspection = await db_adapter.get_inspection(self.inspection_id)
+        db_service = get_db_adapter()
+        inspection = await db_service.get_inspection(self.inspection_id)
         if not inspection:
             return "Error: Inspection record not found in database."
 
         clean_id = str(item_id).strip()
         target_item = None
 
-        # 1. Match by exact item_id
         for item in inspection.items:
             if str(item.item_id).strip() == clean_id:
                 target_item = item
                 break
 
-        # 2. Match by partial question keyword if item_id was sent as text
         if not target_item:
             clean_lower = clean_id.lower()
             for item in inspection.items:
@@ -77,7 +95,6 @@ class SonuraInspectionAgent(Agent):
                     target_item = item
                     break
 
-        # 3. Fallback to first pending item
         if not target_item:
             for item in inspection.items:
                 if item.status == InspectionStatus.PENDING:
@@ -91,9 +108,8 @@ class SonuraInspectionAgent(Agent):
         target_item.status = InspectionStatus.COMPLETED
 
         updated_items = [item.model_dump() for item in inspection.items]
-        db_adapter.client.table("inspections").update({"items": updated_items}).eq("id", inspection.id).execute()
+        db_service.client.table("inspections").update({"items": updated_items}).eq("id", inspection.id).execute()
 
-        # Broadcast real-time checklist update to frontend HUD
         try:
             update_packet = json.dumps({
                 "type": "checklist_updated",
@@ -105,7 +121,6 @@ class SonuraInspectionAgent(Agent):
         except Exception as err:
             logger.error(f"Failed to publish data channel packet: {err}")
 
-        # Broadcast transcript dialogue message
         try:
             dialogue_packet = json.dumps({
                 "type": "transcript",
@@ -125,16 +140,16 @@ class SonuraInspectionAgent(Agent):
     @function_tool()
     async def submit_audit_for_review(self, context: RunContext) -> str:
         """Submit the completed inspection for supervisor review and sign-off."""
-        inspection = await db_adapter.get_inspection(self.inspection_id)
+        db_service = get_db_adapter()
+        inspection = await db_service.get_inspection(self.inspection_id)
         if not inspection:
             return "Inspection not found."
 
-        db_adapter.client.table("inspections").update({
+        db_service.client.table("inspections").update({
             "status": InspectionStatus.COMPLETED.value
         }).eq("id", inspection.id).execute()
 
-        # Send targeted notification to supervisors
-        db_adapter.client.table("notifications").insert({
+        db_service.client.table("notifications").insert({
             "org_id": inspection.org_id,
             "role_target": "supervisor",
             "title": f"Audit Submitted: {inspection.unit_id}",
@@ -159,8 +174,8 @@ async def entrypoint(ctx: JobContext):
 
     inspection_id = ctx.room.name.replace("inspection-unit-", "")
 
-    # Fetch active inspection to inject exact checklist items into system prompt
-    inspection = await db_adapter.get_inspection(inspection_id)
+    db_service = get_db_adapter()
+    inspection = await db_service.get_inspection(inspection_id)
     checklist_context = ""
     if inspection and inspection.items:
         lines = [f"Item ID {item.item_id}: {item.question}" for item in inspection.items]
@@ -212,4 +227,9 @@ RULES:
     await session.say("Sonura connected. What equipment item would you like to inspect first?")
 
 if __name__ == "__main__":
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+    cli.run_app(
+        WorkerOptions(
+            entrypoint_fnc=entrypoint,
+            num_idle_processes=0
+        )
+    )

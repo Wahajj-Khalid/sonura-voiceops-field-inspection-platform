@@ -8,7 +8,7 @@ The architecture strictly adheres to Hexagonal Architecture (Ports and Adapters)
 
 ## Live Deployment
 
-The application is live and deployed on: Sonura[]
+The application is deployed and can be accessed directly at:: [Sonura](link_here)
 
 ## System Architecture
 
