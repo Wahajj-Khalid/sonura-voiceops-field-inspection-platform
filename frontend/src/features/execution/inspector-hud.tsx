@@ -68,10 +68,9 @@ export const InspectorHUD: React.FC<InspectorHUDProps> = ({
 
   const completedCount = inspection ? inspection.items.filter((i) => i.status === "completed").length : 0;
   const totalCount = inspection ? inspection.items.length : 0;
-  const allCompleted = totalCount > 0 && completedCount === totalCount;
+  const allCompleted = totalCount > 0 ? completedCount === totalCount : false;
   const passRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
-  // Persist manual checkpoint modifications to backend
   const handleUpdateItem = async (itemId: string, updatedFields: Partial<InspectionItem>) => {
     if (!inspection) return;
 
@@ -131,19 +130,19 @@ export const InspectorHUD: React.FC<InspectorHUDProps> = ({
   }));
 
   return (
-    <div className="space-y-6 font-mono">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight font-sans">
+    <div className="space-y-4 sm:space-y-6 font-mono w-full max-w-full overflow-hidden">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 w-full">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white tracking-tight font-sans truncate">
             Inspection
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5 font-sans">
+          <p className="text-xs text-slate-400 mt-0.5 font-sans leading-relaxed">
             Hands-free voice walkthrough HUD with real-time checkpoint synchronization and defect capture.
           </p>
         </div>
 
-        <div className="flex items-center space-x-3 text-xs w-full sm:w-auto">
-          <div className="w-64">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 text-xs w-full md:w-auto shrink-0">
+          <div className="w-full sm:w-60 min-w-0">
             <Select
               options={siteOptions}
               value={unitId}
@@ -153,35 +152,35 @@ export const InspectorHUD: React.FC<InspectorHUDProps> = ({
             />
           </div>
 
-          <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 shrink-0">
-            <span className="text-slate-400">Progress: </span>
+          <div className="p-2 sm:p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between sm:justify-start space-x-2 shrink-0">
+            <span className="text-slate-400">Progress:</span>
             <strong className="text-emerald-400">{completedCount}/{totalCount} ({passRate}%)</strong>
           </div>
         </div>
       </div>
 
-      {submitSuccess && (
-        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center space-x-2">
+      {submitSuccess ? (
+        <div className="p-3 sm:p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center space-x-2">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>Audit report submitted successfully for supervisor review.</span>
         </div>
-      )}
+      ) : null}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
+        <Card className="lg:col-span-2 flex flex-col justify-between w-full overflow-hidden">
+          <div className="w-full">
+            <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
+              <div className="min-w-0 pr-2">
                 <Badge variant="violet">{unitId}</Badge>
-                <h3 className="text-lg font-bold text-white mt-2 font-sans">Equipment Checkpoints</h3>
+                <h3 className="text-base sm:text-lg font-bold text-white mt-1.5 sm:mt-2 font-sans truncate">
+                  Equipment Checkpoints
+                </h3>
               </div>
 
-              <div className="flex items-center space-x-2">
+              <div className="shrink-0">
                 <Badge
                   variant={
-                    inspection?.status === "approved" || inspection?.status === "completed"
-                      ? "success"
-                      : "info"
+                    inspection?.status === "approved" ? "success" : inspection?.status === "completed" ? "success" : "info"
                   }
                 >
                   {inspection ? inspection.status.toUpperCase() : "IN PROGRESS"}
@@ -189,7 +188,7 @@ export const InspectorHUD: React.FC<InspectorHUDProps> = ({
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2.5 sm:space-y-3 w-full">
               {inspection ? (
                 inspection.items.map((item) => (
                   <ChecklistTile
@@ -206,29 +205,34 @@ export const InspectorHUD: React.FC<InspectorHUDProps> = ({
             </div>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
+          <div className="mt-5 sm:mt-6 pt-3.5 sm:pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-400 w-full">
             <button
+              type="button"
               onClick={() => onOpenReport(unitId)}
               className="text-violet-400 hover:text-violet-300 font-semibold inline-flex items-center cursor-pointer font-sans"
             >
               Preview Certificate <ChevronRight className="w-3.5 h-3.5 ml-1" />
             </button>
 
-            {allCompleted && inspection?.status !== "completed" && inspection?.status !== "approved" && (
-              <Button
-                variant="primary"
-                icon={<Send className="w-3.5 h-3.5" />}
-                isLoading={isSubmittingAudit}
-                onClick={handleSubmitAudit}
-                className="text-xs py-2 px-4 shadow-md"
-              >
-                Submit Audit for Review
-              </Button>
-            )}
+            {allCompleted ? (
+              inspection?.status !== "completed" ? (
+                inspection?.status !== "approved" ? (
+                  <Button
+                    variant="primary"
+                    icon={<Send className="w-3.5 h-3.5" />}
+                    isLoading={isSubmittingAudit}
+                    onClick={handleSubmitAudit}
+                    className="text-xs py-2 px-4 shadow-md w-full sm:w-auto justify-center"
+                  >
+                    Submit Audit for Review
+                  </Button>
+                ) : null
+              ) : null
+            ) : null}
           </div>
         </Card>
 
-        <div className="flex flex-col space-y-6">
+        <div className="flex flex-col space-y-4 sm:space-y-6 w-full">
           <VoiceCopilot
             connectionState={connectionState}
             isAgentSpeaking={isAgentSpeaking}

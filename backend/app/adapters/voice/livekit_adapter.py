@@ -25,30 +25,6 @@ class LiveKitVoiceAdapter(VoicePort):
                 can_subscribe=True
             ))
 
-        try:
-            lk_client = api.LiveKitAPI(self.livekit_url, self.api_key, self.api_secret)
-            try:
-                await lk_client.room.create_room(
-                    api.CreateRoomRequest(
-                        name=room_name,
-                        empty_timeout=15,
-                        departure_timeout=15
-                    )
-                )
-                try:
-                    await lk_client.agent_dispatch.create_dispatch(
-                        api.CreateAgentDispatchRequest(
-                            room=room_name,
-                            agent_name=""
-                        )
-                    )
-                except Exception as dispatch_err:
-                    logger.debug(f"Direct agent dispatch note: {dispatch_err}")
-            finally:
-                await lk_client.aclose()
-        except Exception as e:
-            logger.warning(f"Room allocation check: {e}")
-
         return token.to_jwt()
 
     async def dispatch_agent(self, room_name: str, metadata: Dict[str, Any]) -> bool:
