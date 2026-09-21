@@ -8,7 +8,9 @@ The architecture strictly adheres to Hexagonal Architecture (Ports and Adapters)
 
 ## Live Deployment
 
-The application is deployed and can be accessed directly at: [Sonura](https://sonura-voiceops-field-inspection-dn42.onrender.com/)
+The application is deployed and can be accessed directly at: [Sonura Platform](https://sonura-voiceops-field-inspection-dn42.onrender.com/)
+
+---
 
 ## System Architecture
 
@@ -27,9 +29,11 @@ The application is deployed and can be accessed directly at: [Sonura](https://so
 project-root/
 ├── .env.example                          # Root environment template configuration
 ├── .gitignore                            # Root version control ignore rules
+├── .python-version                       # Python runtime version lock (3.12.9)
 ├── docker-compose.yml                   # Container orchestration specification
 ├── backend/
 │   ├── .dockerignore                     # Docker build exclusions for backend
+│   ├── .python-version                   # Backend Python version lock (3.12.9)
 │   ├── Dockerfile                        # Multi-stage Python 3.12 slim container
 │   ├── requirements.txt                  # Python dependencies
 │   ├── migrations/
@@ -104,6 +108,7 @@ project-root/
         │   │       └── page.tsx          # Login page with demo profile selector
         │   ├── dashboard/
         │   │   └── page.tsx          # Role-aware executive dashboard shell
+        │   ├── global-error.tsx          # Root error boundary for runtime isolation
         │   ├── globals.css               # Spatial intelligence glassmorphism styles
         │   ├── layout.tsx                # Root HTML layout and AuthProvider wrapper
         │   └── page.tsx                  # Public landing page and certificate specimen
@@ -250,7 +255,7 @@ project-root/
 
 ### 1. Clone the Repository
 
-```powershell
+```bash
 git clone https://github.com/Wahajj-Khalid/sonura-voiceops-field-inspection-platform.git
 cd sonura-voiceops-field-inspection-platform
 ```
@@ -291,7 +296,7 @@ Execute the complete schema and RPC definition file `backend/migrations/001_init
 
 ### Option A: Running via Docker Compose (Recommended)
 
-Build and launch all services in detached mode with memory constraints:
+Build and launch all services in detached mode:
 
 ```bash
 docker compose build
@@ -326,7 +331,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```bash
 cd backend
 source venv/bin/activate
-python app/agent/voice_agent.py dev
+python -m app.agent.voice_agent dev
 ```
 
 #### Start the Next.js Frontend

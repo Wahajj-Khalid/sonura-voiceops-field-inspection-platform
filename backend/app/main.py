@@ -1,8 +1,4 @@
-import os
-import sys
-import asyncio
 import logging
-from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -16,43 +12,11 @@ from app.api.v1.router import api_router
 logger = logging.getLogger("sonura-main")
 limiter = Limiter(key_func=get_remote_address)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    agent_process = None
-    if settings.LIVEKIT_URL and settings.LIVEKIT_API_KEY:
-        try:
-            current_env = dict(os.environ)
-            current_env["PYTHONPATH"] = os.getenv("PYTHONPATH", "/opt/render/project/src/backend")
-            
-            agent_process = await asyncio.create_subprocess_exec(
-                sys.executable,
-                "-m",
-                "app.agent.voice_agent",
-                "dev",
-                env=current_env
-            )
-            logger.info(f"LiveKit Voice Agent background process launched (PID: {agent_process.pid})")
-        except Exception as e:
-            logger.error(f"Failed to launch background voice agent process: {str(e)}")
-    else:
-        logger.warning("LiveKit credentials not configured. Voice agent worker disabled.")
-
-    yield
-
-    if agent_process:
-        try:
-            agent_process.terminate()
-            await agent_process.wait()
-            logger.info("LiveKit Voice Agent background process terminated.")
-        except Exception:
-            pass
-
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
     docs_url="/docs" if settings.ENVIRONMENT == "development" else None,
-    redoc_url=None,
-    lifespan=lifespan
+    redoc_url=None
 )
 
 app.state.limiter = limiter

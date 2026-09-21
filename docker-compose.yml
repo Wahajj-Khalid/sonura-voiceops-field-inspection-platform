@@ -39,7 +39,7 @@ services:
       dockerfile: Dockerfile
     container_name: sonura-voice-agent
     restart: unless-stopped
-    command: ["python", "-m", "app.agent.voice_agent", "start"]
+    command: ["python", "-m", "app.agent.voice_agent", "dev"]
     environment:
       - ENVIRONMENT=production
       - PYTHONPATH=/app
