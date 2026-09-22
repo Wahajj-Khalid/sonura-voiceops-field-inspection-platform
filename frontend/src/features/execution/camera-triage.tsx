@@ -36,16 +36,32 @@ export const CameraTriage: React.FC<CameraTriageProps> = ({
     formData.append("file", file);
     formData.append("unit_id", unitId);
 
+    const headers: HeadersInit = {};
+    try {
+      if (typeof window !== "undefined") {
+        const stored = sessionStorage.getItem("sonura_ephemeral_session_keys");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.geminiKey) {
+            headers["x-custom-gemini-key"] = parsed.geminiKey;
+          }
+        }
+      }
+    } catch (e) {
+      // Fallback
+    }
+
     try {
       const res = await authFetch(`${APP_CONFIG.apiUrl}/api/v1/vision/analyze-photo`, {
         method: "POST",
+        headers,
         body: formData,
       });
 
       const data = await res.json();
       if (res.ok) {
         setLastFinding(data.analysis);
-        if (data.analysis && data.analysis.error_message) {
+        if (data.analysis ? data.analysis.error_message : false) {
           setErrorMessage(data.analysis.error_message);
         }
         if (onDefectDetected) {
@@ -75,14 +91,14 @@ export const CameraTriage: React.FC<CameraTriageProps> = ({
   };
 
   return (
-    <Card className="flex flex-col justify-between space-y-4 font-mono">
+    <Card className="flex flex-col justify-between space-y-4 font-mono w-full min-w-0">
       <div>
         <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-          <div className="flex items-center space-x-2">
-            <Camera className="w-4 h-4 text-violet-400" />
-            <h3 className="text-sm font-bold text-white font-sans">Visual Defect Triage</h3>
+          <div className="flex items-center space-x-2 min-w-0">
+            <Camera className="w-4 h-4 text-violet-400 shrink-0" />
+            <h3 className="text-sm font-bold text-white font-sans truncate">Visual Defect Triage</h3>
           </div>
-          <Badge variant="violet">Gemini Vision AI</Badge>
+          <Badge variant="violet" className="shrink-0 text-[10px]">Gemini Vision AI</Badge>
         </div>
 
         <input
@@ -128,9 +144,9 @@ export const CameraTriage: React.FC<CameraTriageProps> = ({
         {errorMessage ? (
           <div className="mt-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-start space-x-2 font-mono">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <span className="font-bold block">Vision Notice:</span>
-              <span className="text-[11px] leading-snug">{errorMessage}</span>
+              <span className="text-[11px] leading-snug break-words">{errorMessage}</span>
             </div>
           </div>
         ) : null}
@@ -146,14 +162,14 @@ export const CameraTriage: React.FC<CameraTriageProps> = ({
                 <button
                   type="button"
                   onClick={clearResults}
-                  className="text-[10px] text-slate-500 hover:text-slate-300 transition-colors p-1"
+                  className="text-[10px] text-slate-500 hover:text-slate-300 transition-colors p-1 cursor-pointer"
                   title="Clear scan"
                 >
                   <RefreshCw className="w-3 h-3" />
                 </button>
               </div>
             </div>
-            <p className="text-slate-200 text-xs leading-relaxed font-sans">
+            <p className="text-slate-200 text-xs leading-relaxed font-sans break-words">
               {lastFinding.defect_summary}
             </p>
           </div>

@@ -9,7 +9,6 @@ from app.ports.vision_port import VisionPort
 
 logger = logging.getLogger("gemini-vision-adapter")
 
-# Keywords that disqualify models from multimodal vision analysis
 EXCLUDED_MODEL_SUBSTRINGS = [
     "tts",
     "transcribe",
@@ -24,8 +23,8 @@ EXCLUDED_MODEL_SUBSTRINGS = [
 ]
 
 class GeminiVisionAdapter(VisionPort):
-    def __init__(self):
-        self.api_key = settings.GEMINI_API_KEY
+    def __init__(self, api_key: Optional[str] = None):
+        self.api_key = api_key or settings.GEMINI_API_KEY
         self.base_url = GEMINI_BASE_URL
         self._cached_discovered_models: Optional[List[str]] = None
 
@@ -65,7 +64,6 @@ class GeminiVisionAdapter(VisionPort):
             if discovered not in curated_models:
                 curated_models.append(discovered)
 
-        # Cap trial list to at most 4 valid vision models to prevent request timeouts
         return curated_models[:4]
 
     async def analyze_defect_image(

@@ -111,6 +111,7 @@ export function useVoiceSession() {
     }
 
     if (roomRef.current) {
+      roomRef.current.removeAllListeners();
       roomRef.current.disconnect();
       roomRef.current = null;
     }

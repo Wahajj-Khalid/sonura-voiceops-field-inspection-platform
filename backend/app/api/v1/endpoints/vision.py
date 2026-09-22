@@ -1,6 +1,6 @@
 import uuid
-from typing import Dict, Any
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
+from typing import Dict, Any, Optional
+from fastapi import APIRouter, UploadFile, File, Form, Header, HTTPException, Depends
 from supabase import create_client
 from app.core.config import settings
 from app.core.security import get_current_user
@@ -14,9 +14,6 @@ router = APIRouter(prefix="/vision", tags=["Multimodal Vision AI"])
 def get_supabase_client():
     return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
-def get_vision_service() -> VisionPort:
-    return GeminiVisionAdapter()
-
 def get_database_service() -> DatabasePort:
     return SupabaseAdapter()
 
@@ -24,8 +21,8 @@ def get_database_service() -> DatabasePort:
 async def analyze_equipment_photo(
     file: UploadFile = File(...),
     unit_id: str = Form(...),
+    x_custom_gemini_key: Optional[str] = Header(None, description="Ephemeral Gemini API Key for session testing"),
     current_user: dict = Depends(get_current_user),
-    vision_service: VisionPort = Depends(get_vision_service),
     db_service: DatabasePort = Depends(get_database_service)
 ) -> Dict[str, Any]:
     client = get_supabase_client()
@@ -51,6 +48,7 @@ async def analyze_equipment_photo(
     except Exception:
         pass
 
+    vision_service = GeminiVisionAdapter(api_key=x_custom_gemini_key)
     analysis = await vision_service.analyze_defect_image(file_bytes, mime_type, questions)
 
     signed_url = ""

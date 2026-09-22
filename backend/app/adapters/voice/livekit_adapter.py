@@ -38,7 +38,7 @@ class LiveKitVoiceAdapter(VoicePort):
             await lk_client.room.create_room(
                 api.CreateRoomRequest(
                     name=room_name,
-                    empty_timeout=15
+                    empty_timeout=10
                 )
             )
             return True

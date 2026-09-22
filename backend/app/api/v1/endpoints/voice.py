@@ -1,3 +1,4 @@
+import uuid
 from typing import Optional
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -28,14 +29,16 @@ async def get_voice_token(
     payload: FlexibleVoiceTokenRequest,
     voice_service: VoicePort = Depends(get_voice_service)
 ):
-    resolved_unit = payload.unit_id or payload.room_name
-    if not resolved_unit:
+    raw_unit = payload.unit_id or payload.room_name
+    if not raw_unit:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Missing required field: Provide either unit_id or room_name."
         )
 
-    resolved_room = f"inspection-unit-{resolved_unit}" if not resolved_unit.startswith("inspection-unit-") else resolved_unit
+    clean_unit = raw_unit.replace("inspection-unit-", "").strip()
+    session_uuid = uuid.uuid4().hex[:6]
+    resolved_room = f"inspection-unit-{clean_unit}-{session_uuid}"
     resolved_identity = payload.participant_id or "field-inspector"
 
     active_url = payload.custom_livekit_url or settings.LIVEKIT_URL

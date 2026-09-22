@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { KeyRound, ShieldAlert, Check, RefreshCw } from "lucide-react";
+import { KeyRound, ShieldAlert, Check, Sparkles, Database } from "lucide-react";
 import { Modal } from "../ui/modal";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -23,6 +23,7 @@ export const EphemeralKeysModal: React.FC<EphemeralKeysModalProps> = ({
   const [livekitUrl, setLivekitUrl] = useState("");
   const [livekitKey, setLivekitKey] = useState("");
   const [livekitSecret, setLivekitSecret] = useState("");
+  const [geminiKey, setGeminiKey] = useState("");
   const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export const EphemeralKeysModal: React.FC<EphemeralKeysModalProps> = ({
           setLivekitUrl(parsed.livekitUrl || "");
           setLivekitKey(parsed.livekitKey || "");
           setLivekitSecret(parsed.livekitSecret || "");
+          setGeminiKey(parsed.geminiKey || "");
         }
       }
     } catch (e) {
@@ -45,7 +47,7 @@ export const EphemeralKeysModal: React.FC<EphemeralKeysModalProps> = ({
     e.preventDefault();
     try {
       if (typeof window !== "undefined") {
-        const payload = { livekitUrl, livekitKey, livekitSecret };
+        const payload = { livekitUrl, livekitKey, livekitSecret, geminiKey };
         sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
         setIsSaved(true);
         if (onKeysUpdated) onKeysUpdated();
@@ -66,6 +68,7 @@ export const EphemeralKeysModal: React.FC<EphemeralKeysModalProps> = ({
         setLivekitUrl("");
         setLivekitKey("");
         setLivekitSecret("");
+        setGeminiKey("");
         if (onKeysUpdated) onKeysUpdated();
       }
     } catch (e) {
@@ -86,41 +89,61 @@ export const EphemeralKeysModal: React.FC<EphemeralKeysModalProps> = ({
           </Badge>
         </div>
 
-        <div className="p-3 rounded-xl bg-violet-950/30 border border-violet-500/30 text-xs text-slate-300 space-y-1 font-sans">
+        <div className="p-3 rounded-xl bg-violet-950/30 border border-violet-500/30 text-xs text-slate-300 space-y-2 font-sans">
           <div className="flex items-center space-x-1.5 text-violet-300 font-bold font-mono">
             <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
-            <span>Zero Server Persistence</span>
+            <span>Encapsulated Database Privacy</span>
           </div>
           <p className="text-[11px] text-slate-400 leading-relaxed">
-            Keys are held strictly in active browser session memory and are erased permanently when you refresh the page or close this tab.
+            Database records and manual RAG queries are securely managed by your deployed Sonura Backend Gateway. You only need your own LiveKit credentials to stream voice audio.
           </p>
         </div>
 
         <form onSubmit={handleSaveKeys} className="space-y-3">
-          <Input
-            label="LiveKit WebSocket URL"
-            type="text"
-            value={livekitUrl}
-            onChange={(e) => setLivekitUrl(e.target.value.trim())}
-            placeholder="wss://your-project.livekit.cloud"
-          />
+          <div className="space-y-1">
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+              1. LiveKit WebRTC Audio Stream
+            </span>
+            <Input
+              label="LiveKit WebSocket URL"
+              type="text"
+              value={livekitUrl}
+              onChange={(e) => setLivekitUrl(e.target.value.trim())}
+              placeholder="wss://your-project.livekit.cloud"
+            />
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <Input
+                label="API Key"
+                type="text"
+                value={livekitKey}
+                onChange={(e) => setLivekitKey(e.target.value.trim())}
+                placeholder="APIxxxxxxxxxxxx"
+              />
+              <Input
+                label="API Secret"
+                type="password"
+                isPassword={true}
+                value={livekitSecret}
+                onChange={(e) => setLivekitSecret(e.target.value.trim())}
+                placeholder="••••••••••••••••"
+              />
+            </div>
+          </div>
 
-          <Input
-            label="LiveKit API Key"
-            type="text"
-            value={livekitKey}
-            onChange={(e) => setLivekitKey(e.target.value.trim())}
-            placeholder="APIxxxxxxxxxxxx"
-          />
-
-          <Input
-            label="LiveKit API Secret"
-            type="password"
-            isPassword={true}
-            value={livekitSecret}
-            onChange={(e) => setLivekitSecret(e.target.value.trim())}
-            placeholder="••••••••••••••••"
-          />
+          <div className="space-y-1 pt-2 border-t border-slate-800">
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+              2. Multimodal Vision Defect Triage (Optional)
+            </span>
+            <Input
+              label="Google Gemini API Key"
+              type="password"
+              isPassword={true}
+              value={geminiKey}
+              onChange={(e) => setGeminiKey(e.target.value.trim())}
+              placeholder="AQ.Ab8xxxxxxxxxxxxxxxx"
+              helperText="Optional: Leave blank to use server default vision credentials."
+            />
+          </div>
 
           <div className="pt-3 flex items-center justify-between border-t border-slate-800">
             <button
