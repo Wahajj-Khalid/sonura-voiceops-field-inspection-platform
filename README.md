@@ -65,18 +65,18 @@ project-root/
 │       │       │   ├── contact.py        # Enterprise pilot inquiry submissions
 │       │       │   ├── inspections.py    # Field audit telemetry and reviews
 │       │       │   ├── notifications.py  # User and role targeted notifications
-│       │       │   ├── organizations.py  # Tenant provisioning and quota management
+│       │       │   ├── organizations.py  # Tenant provisioning, live diagnostics, quotas
 │       │       │   ├── rag.py            # PDF manual upload and semantic vector querying
 │       │       │   ├── sites.py          # Site facilities registration and binding
-│       │       │   ├── team.py           # Team roster and removal safety checks
+│       │       │   ├── team.py           # Team roster and member suspension controls
 │       │       │   ├── templates.py      # Checklist template protocol builder
 │       │       │   ├── vision.py         # Multimodal photo triage controller
-│       │       │   └── voice.py          # WebRTC room token provisioning
+│       │       │   └── voice.py          # WebRTC room token provisioning with session hashing
 │       │       └── router.py             # Centralized v1 API router
 │       ├── core/                         # Core infrastructure configurations
-│       │   ├── config.py                 # Pydantic-Settings environment loader
+│       │   ├── config.py                 # Pydantic-Settings environment loader with multi-path lookup
 │       │   ├── constants.py              # Model names, vector dimensions, plan quotas
-│       │   └── security.py               # Password hashing, JWT tokens, prompt sanitization
+│       │   └── security.py               # Password hashing, JWT tokens, prompt sanitization, agent auth
 │       ├── domain/                       # Pure domain entities and Pydantic schemas
 │       │   ├── common.py                 # Enums for statuses, priority, and roles
 │       │   ├── inspection.py             # Inspection items and response models
@@ -128,7 +128,7 @@ project-root/
         │   │   ├── search-modal.tsx      # Interactive platform search modal
         │   │   └── security-section.tsx  # RLS and cryptographic security highlights
         │   ├── layout/                   # Global application shells
-        │   │   ├── app-header.tsx        # Top header with user profile and alerts
+        │   │   ├── app-header.tsx        # Top header with user profile, ephemeral keys, alerts
         │   │   ├── app-sidebar.tsx       # Collapsible role-tailored navigation sidebar
         │   │   ├── dashboard-shell.tsx   # Responsive padding-aware workspace container
         │   │   └── ephemeral-keys-modal.tsx # In-memory live session credentials manager
@@ -177,7 +177,7 @@ project-root/
         │   │   ├── org-overview.tsx      # Workspace overview with quota progress bars
         │   │   ├── settings-panel.tsx    # TTS personality and automation webhooks
         │   │   ├── team-member-modal.tsx # Team invitation modal with draft auto-save
-        │   │   └── team-roster.tsx       # Member roster with reassignment safety checks
+        │   │   └── team-roster.tsx       # Member roster with suspension controls
         │   ├── platform/                 # Super admin commands and system telemetry
         │   │   ├── health-diagnostics.tsx # LiveKit, Groq, Deepgram, and PGVector health
         │   │   ├── platform-overview.tsx # Global cross-tenant analytics and storage
@@ -195,14 +195,15 @@ project-root/
 
 ## Technical Features
 
-* **Hands-Free WebRTC Voice Copilot**: Real-time two-way audio streaming using LiveKit Agents, Deepgram Nova-2 speech recognition, Deepgram Aura voice generation, and Groq Cloud LLM for sub-200ms spoken checklist interaction.
+* **Hands-Free WebRTC Voice Copilot with Dynamic Session Hashing**: Real-time two-way audio streaming using LiveKit Agents, Deepgram Nova-2 speech recognition, Deepgram Aura voice generation, and Groq Cloud LLM for sub-200ms spoken checklist interaction. Room names utilize dynamic session hashing (`inspection-unit-{unit_id}-{session_uuid}`) to ensure instant disconnects and reconnects without lingering room deadlocks.
 * **Local In-Memory Vector RAG**: Zero-cost semantic technical manual retrieval powered by FastEmbed (`BAAI/bge-small-en-v1.5`, 384 dimensions) and Supabase PGVector cosine similarity RPC filtering, partitioned strictly by tenant organization.
 * **Multimodal Defect Triage**: Integrates Google Gemini Vision AI to detect cracks, corrosion, leaks, clogged filters, and mechanical damage from mobile photos, automatically flagging checklist items and alerting the inspector via voice telemetry.
 * **Dual-Channel Audio Evidence Vault**: Captures mixed audio of both the technician microphone and the remote AI assistant, uploading sessions to Supabase Storage with authenticated private 1-hour signed playback URLs.
 * **Verifiable Single-Page Compliance Certificates**: Formats completed inspection telemetry, AI safety evaluations, itemized readings, and evidence photos into an audit-ready, single-page A4 compliance certificate with one-click print styling.
+* **Encapsulated Database Privacy**: The Voice Agent executes all checklist updates and manual queries exclusively through the secure Backend REST API. External workers do not require direct Supabase credentials.
+* **Ephemeral Session Keys (BYOK for Live Testing)**: Evaluators can test live voice calls against their own LiveKit and Gemini instances by clicking the Key icon in the top header. Credentials exist strictly in active browser memory and are permanently wiped on page refresh.
 * **Strict Multi-Tenant Row-Level Security**: Isolates data across organizations using PostgreSQL RLS policies, cryptographic HS256 JWT claims, and Pydantic v2 payload sanitization against SQL injection and prompt manipulation.
-* **Ephemeral Session Keys (BYOK for Live Testing)**: Evaluators can test live voice calls against their own LiveKit and Gemini instances by clicking the Key icon in the header. Credentials exist strictly in active browser memory and are permanently wiped on page refresh.
-* **Memory-Conscious Architecture**: Multi-stage build design with Node 20 Alpine standalone output, Pydantic Settings fallback loading, and low-footprint single-worker Python execution.
+* **Member Access Suspension Controls**: Super Admins and Organization Admins can suspend or restore individual user accounts with immediate authentication lockout enforcement.
 
 ---
 
@@ -214,15 +215,16 @@ project-root/
 +-------------------+-------------------------------------------------------------------------------+
 | Super Admin       | - Global platform command and cross-tenant analytics telemetry               |
 |                   | - Tenant directory with custom quota editing and suspension controls         |
+|                   | - Individual user account suspension across any organization                 |
 |                   | - New tenant provisioning form                                               |
-|                   | - LiveKit, Groq, Deepgram, and PGVector system diagnostics                   |
+|                   | - LiveKit, Groq, Deepgram, and PGVector system diagnostics with live pings   |
 |                   | - Global audit archive across all client organizations                       |
 |                   | - Platform settings (global defaults, model endpoints)                        |
 +-------------------+-------------------------------------------------------------------------------+
 | Org Admin         | - Organization executive overview with live quota utilization progress bars   |
 |                   | - Site and equipment facility registration (enforcing max_sites quota)       |
 |                   | - Dynamic checklist template builder (create, edit, delete)                  |
-|                   | - Team member roster management (enforcing max_users quota and safety checks) |
+|                   | - Team member roster management and individual member suspension controls    |
 |                   | - Technical manuals RAG repository (tenant-scoped)                            |
 |                   | - Organization audit archive and single-page certificate inspector           |
 |                   | - Workspace notifications and settings (custom webhooks and TTS personality)  |
@@ -247,16 +249,16 @@ project-root/
 
 ---
 
-## Cloud Deployment Constraints and Resolution
+## Cloud Deployment Architecture and Hybrid Execution
 
-### The 512 MB Free Tier Memory Constraint
+### The 512 MB Free Tier Constraint
 Running both the **FastEmbed ONNX Vector Model** (~220 MB RAM) and a **LiveKit WebRTC Voice Worker** (~230 MB RAM) simultaneously inside a single free-tier container (such as Render's 512 MB limit) causes immediate Linux Out-Of-Memory (OOM) kernel termination during active audio handshakes.
 
 ### Operational Resolution
 
 1. **Production Cloud Deployment**: The cloud-hosted FastAPI backend runs purely as a high-speed REST API and vector query service (~75 MB RAM), completely eliminating OOM restarts.
 2. **Real-Time Voice Streaming Options**:
-   * **Option A (Zero-Lag Hybrid Execution)**: The voice agent worker is executed on any local terminal or developer machine via `python -m app.agent.voice_agent dev`. Because LiveKit connects outbound via WebSockets to `wss://sonura-qw29qnzq.livekit.cloud`, the local worker immediately services live WebRTC calls placed from the public Render production frontend.
+   * **Option A (Zero-Lag Local Agent Execution)**: The voice agent worker is executed on any local terminal or developer machine via `python -m app.agent.voice_agent dev`. Because LiveKit connects outbound via WebSockets to `wss://sonura-qw29qnzq.livekit.cloud`, the local worker immediately services live WebRTC calls placed from the public Render production frontend.
    * **Option B (Ephemeral Browser Session Keys)**: Users evaluating the live deployment without access to server environment secrets can click the Key icon in the top header and provide their own LiveKit credentials. The frontend requests dynamically signed tokens for their specific LiveKit project on the fly.
 
 ---
@@ -391,6 +393,7 @@ For testing and local verification, the default migration seeds the following ro
 
 ## Architectural Considerations and Operational Guardrails
 
+* **Zero-Deadlock Room Recycling**: Room names embed ephemeral session IDs to guarantee immediate agent worker dispatches on reconnects without waiting for lingering room teardown timers.
 * **Resilient Vision Discovery**: The vision adapter queries Google Gemini models using the `x-goog-api-key` header, automatically attempting active model endpoints (`gemini-3.6-flash`, `gemini-flash-latest`, `gemini-3.7-flash`) before dynamic discovery, preventing request timeouts.
 * **WebM Duration Reconciliation**: The audio evidence player implements client-side seeking fallbacks to calculate accurate audio durations for WebM streams recorded in Chromium browsers.
 * **Modal Draft Persistence**: All creation modals (Site registration, Checklist builder, Team invitations, Tenant provisioning) automatically cache unsaved form drafts in `localStorage` to avoid data loss on accidental backdrop clicks.
